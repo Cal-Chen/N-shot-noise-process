@@ -1,5 +1,10 @@
 ### moments of N shot noise processes
 library(deSolve)
+library(statmod)
+object <- gauss.quad(10,"legendre") #number of notes 10
+nodes <- object$nodes
+weight <- object$weights
+
 
 autoname <- function(prefix,order,N,method='tri'){
   object <- 0
@@ -78,9 +83,9 @@ Moments_Nshotnoise <- function(N,c_0,lam,T,delta,rho,alpha){
     }
   }
   
-  name_Elam <- autoname('Elam',2,N)
+  name_Elam <- autoname('Elamlam',2,N)
   name_EMlam <- autoname('EMlam',2,N,method='matrix')
-  name_EM <- autoname('EM',2,N)
+  name_EM <- autoname('EMM',2,N)
   
   state <- c(a = lamij,b = rep(0,N*N),c=rep(0,N*(N+1)*0.5),EM=rep(0,N),Elam=lam)
   names(state)[1:(N*(N+1)*0.5)] <- name_Elam
@@ -249,8 +254,12 @@ Elambda2(T)
 ### theoretical lower bound for sum lambda_i
 sum_lambda_L <- function(t){
   mu <- 1/alpha
-  result <- mu*rho / (delta-mu) *(1-exp((mu-delta)*t)) - rho *exp((mu-delta)*t)*(mu^(N+1))/gamma(N+1)* 
-  0.5*t*sum(weight * sapply(t*0.5*nodes + t*0.5,function(x) exp(delta-mu*x)*x^N)) - lam[1]*mu*t*exp((mu-delta)*t) + sum(lam)*exp((mu-delta)*t)
+  result <- (mu*rho + delta*sum(c_0) )/ (delta-mu) *(1-exp((mu-delta)*t)) - 
+            (rho-c_0[1]/(1-(1/(alpha*delta))))*exp((mu-delta)*t)*(mu^(N+1))/gamma(N+1)* 
+            0.5*t*sum(weight * sapply(t*0.5*nodes + t*0.5,function(x) exp(delta-mu*x)*x^N)) - 
+            (lam[1]-c_0[1]/(1-(1/(alpha*delta))))*mu*t*exp((mu-delta)*t) - 
+            mu*c_0[1]/(1-(1/(alpha*delta)))*((1-exp((mu-delta)*t))/(delta-mu)) + 
+            sum(lam)*exp((mu-delta)*t)
   return(result)
 }
 
@@ -262,10 +271,9 @@ sum_lambda_U <- function(t){
   return(result)
 }
 
-
-N <- 10
-c_0 <- rep(0,N)
-lam <- rep(10/N,N)
+N <- 13
+c_0 <- rep(1/N,N)
+lam <- rep(2/N,N)
 T <- 1
 delta <- 0.3
 alpha <- 2
@@ -279,30 +287,25 @@ sum_lambda_L(T)
 sum(result[name_Elam1])
 
 
-##convergence test of moments
-N_seq <- 1:20
+## test of second moments
+
+N <- 13
+c_0 <- rep(1/N,N)
+lam <- rep(2/N,N)
 T <- 1
-delta <- 200
-alpha <- 0.2
-rho <- 5
-Moments_seq2 <- rep(0,length(N_seq)-1)
+delta <- 0.3
+alpha <- 2
+rho <- 2
 
 
-for(i in 2:length(N_seq)){
-  N <- N_seq[i]
-  c_0 <- rep(2,N)
-  lam <- rep(5,N)
-  Moments_seq2[i-1] <- Moment_1_Nshotnoise(N,c_0,lam,T,delta,rho,alpha)['EM1']
-}
+name <- 0
+name_Elam <- sapply(1:N, function(i) paste('Elam',i,i,sep=''))
 
 
-Moments_seq2
-par(mfrow=c(1,2))
-plot(diff(abs(Moments_seq2)))
-plot(Moments_seq2)
-
-
-
+result2 <- Moments_Nshotnoise(N,c_0,lam,T,delta,rho,alpha)
+result2$other[name_Elam]
+sum(result2$other[names(c(Elam=rep(0,N)))])
+sum(result2$other[name_Elam])
 
 
   
